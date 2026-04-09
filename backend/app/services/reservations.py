@@ -1,6 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 from typing import Dict, Any, List
+import pytz
 
 async def calculate_monthly_revenue(property_id: str, month: int, year: int, db_session=None) -> Decimal:
     """
@@ -35,7 +36,7 @@ async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str,
     """
     Aggregates revenue from database.
     """
-    print(f"calculate_total_revenue called with property_id: {property_id}, tenant_id: {tenant_id}")
+
     try:
         # Import database pool
         from app.core.database_pool import DatabasePool
@@ -48,7 +49,13 @@ async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str,
             async with (await db_pool.get_session()) as session:
                 # Use SQLAlchemy text for raw SQL
                 from sqlalchemy import text
-                
+                current_month = pytz.utc.localize(datetime.utcnow()).month
+                current_year = pytz.utc.localize(datetime.utcnow()).year
+                property_timezone = pytz.timezone("UTC")  # Default to UTC, ideally this should come from property settings
+                start_local = pytz.utc.localize(datetime(
+                    current_year, current_month, 1, 0, 0, 0)).astimezone(property_timezone)
+                end_local = pytz.utc.localize(datetime(
+                    current_year + 1, 1, 1, 0, 0, 0)).astimezone(property_timezone)
                 query = text("""
                     SELECT 
                         property_id,
@@ -56,12 +63,16 @@ async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str,
                         COUNT(*) as reservation_count
                     FROM reservations 
                     WHERE property_id = :property_id AND tenant_id = :tenant_id
+                    AND check_in_date >= :start_local
+                    AND check_in_date < :end_local
                     GROUP BY property_id
                 """)
-                print(f"Executing revenue query for property_id: {property_id}, tenant_id: {tenant_id}")
+
                 result = await session.execute(query, {
                     "property_id": property_id, 
-                    "tenant_id": tenant_id
+                    "tenant_id": tenant_id,
+                    "start_local": start_local,
+                    "end_local": end_local
                 })
                 row = result.fetchone()
                 
@@ -85,9 +96,8 @@ async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str,
                     }
         else:
             raise Exception("Database pool not available")
-            
+                
     except Exception as e:
-        print(f"Database error for {property_id} (tenant: {tenant_id}): {e}")
         
         # Create property-specific mock data for testing when DB is unavailable
         # This ensures each property shows different figures

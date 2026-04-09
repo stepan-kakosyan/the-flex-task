@@ -12,9 +12,9 @@ async def get_dashboard_summary(
 ) -> Dict[str, Any]:
     
     tenant_id = getattr(current_user, "tenant_id", "default_tenant") or "default_tenant"
-    
+    print(f"Authenticated tenant_id: {tenant_id} for property_id: {property_id}")
     revenue_data = await get_revenue_summary(property_id, tenant_id)
-    
+    print(f"Revenue data for property_id: {property_id}, tenant_id: {tenant_id}: {revenue_data}")
     total_revenue_float = float(revenue_data['total'])
     
     return {

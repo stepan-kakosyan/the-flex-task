@@ -35,6 +35,7 @@ async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str,
     """
     Aggregates revenue from database.
     """
+    print(f"calculate_total_revenue called with property_id: {property_id}, tenant_id: {tenant_id}")
     try:
         # Import database pool
         from app.core.database_pool import DatabasePool
@@ -44,7 +45,7 @@ async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str,
         await db_pool.initialize()
         
         if db_pool.session_factory:
-            async with db_pool.get_session() as session:
+            async with (await db_pool.get_session()) as session:
                 # Use SQLAlchemy text for raw SQL
                 from sqlalchemy import text
                 
@@ -57,7 +58,7 @@ async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str,
                     WHERE property_id = :property_id AND tenant_id = :tenant_id
                     GROUP BY property_id
                 """)
-                
+                print(f"Executing revenue query for property_id: {property_id}, tenant_id: {tenant_id}")
                 result = await session.execute(query, {
                     "property_id": property_id, 
                     "tenant_id": tenant_id
